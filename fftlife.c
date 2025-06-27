@@ -89,8 +89,9 @@ int main(int argc, char *argv[])
     float area_in = 0.f ;
     float area_out = 0.f ;
     int running = 1 ;
+    static char window_title[80] ;
 
-    srand48(51064) ;
+    srand48(getpid()) ;
 
     fftw_init_threads() ;
     fftw_plan_with_nthreads(8) ;
@@ -219,9 +220,10 @@ int main(int argc, char *argv[])
     uint32_t *pixels = malloc(SIZE * SIZE * sizeof(uint32_t));
 
     for (g = 0; ; g++) {
-	int t ;
-	fprintf(stderr, "generation %03d\r", g) ;
-	for (t=0; t<8; t++) {
+	/* fprintf(stderr, "generation %03d\r", g) ; */
+	sprintf(window_title, "SmoothLife - generation %d", g) ;
+	SDL_SetWindowTitle(window, window_title) ;
+
 	/* compute the fourier transform */
 	fftw_execute(fwd) ;
 	/* compute the inner integral */
@@ -242,7 +244,6 @@ int main(int argc, char *argv[])
 	}
 	fftw_execute(orev) ;
 	
-#if 1
 	ip = isum ;
 	op = osum ;
 	jp = state ;
@@ -256,9 +257,6 @@ int main(int argc, char *argv[])
 		ip++ ; op++ ;
 		jp++ ;
 	    }
-	}
-
-#endif
 	}
 
 #if 0
