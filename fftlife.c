@@ -3,9 +3,10 @@
 #include <math.h>
 #include <complex.h>
 #include <unistd.h>
+#include <SDL2/SDL.h>
 #include <fftw3.h>
 
-#define SIZE	(1080)
+#define SIZE	(512)
 
 /*======================================================================*/
 
@@ -36,7 +37,7 @@ clamp(float x, float lo, float hi)
     return x ;
 }
 
-inline float 
+float 
 sigma1(float x, float a, float alpha) 
 { 
     return 1.0f / ( 1.0f + expf( -(x-a)*4.0f/alpha ) );
@@ -87,6 +88,7 @@ int main(int argc, char *argv[])
     int x, y, g ;
     float area_in = 0.f ;
     float area_out = 0.f ;
+    int running = 1 ;
 
     srand48(51064) ;
 
@@ -205,8 +207,18 @@ int main(int argc, char *argv[])
 
     fftw_execute(iflt) ;
     fftw_execute(oflt) ;
-    
-    for (g = 0; g < 1000; g++) {
+
+    /* Now, use SDL  */
+
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window *window = SDL_CreateWindow("SmoothLife", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SIZE, SIZE, 0);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, SIZE, SIZE);
+
+    /* allocate an RGB buffer */
+    uint32_t *pixels = malloc(SIZE * SIZE * sizeof(uint32_t));
+
+    for (g = 0; ; g++) {
 	int t ;
 	fprintf(stderr, "generation %03d\r", g) ;
 	for (t=0; t<8; t++) {
@@ -249,7 +261,7 @@ int main(int argc, char *argv[])
 #endif
 	}
 
-#if 1
+#if 0
 	/* that's it!  dump the frame! */
 
 	char fname[80] ;
@@ -266,11 +278,37 @@ int main(int argc, char *argv[])
 
 	pclose(fp) ;
 #else
+	ip = state ;
+	for (int y = 0; y < SIZE; ++y) {
+	    for (int x = 0; x < SIZE; ++x) {
+		float val = *ip++ ;
+		uint8_t v = (uint8_t)(val * 255);
+		pixels[y * SIZE + x] = (v << 16) | (v << 8) | v; // RGB
+	    }
+	}
+	SDL_UpdateTexture(texture, NULL, pixels, SIZE * sizeof(uint32_t));
+
+	SDL_RenderClear(renderer) ;
+	SDL_RenderCopy(renderer, texture, NULL, NULL) ;
+	SDL_RenderPresent(renderer) ;
+
+	SDL_Event e;
+	while (SDL_PollEvent(&e)) {
+	    if (e.type == SDL_QUIT) running = 0;
+	}
+
+	if (! running) 
+	    break ;
 #endif
     }
-    fprintf(stderr, "\n") ;
 
     fftw_cleanup_threads() ;
+
+    /* Destroy SDL */
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
     return 0 ;
 }
